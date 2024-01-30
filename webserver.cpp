@@ -7,13 +7,13 @@ WebServer::WebServer()
 
     //root文件夹路径
     char server_path[200];
-    getcwd(server_path, 200);
+    getcwd(server_path, 200);     // 获取当前工作目录的绝对路径。
     char root[6] = "/root";
     m_root = (char *)malloc(strlen(server_path) + strlen(root) + 1);
     strcpy(m_root, server_path);
     strcat(m_root, root);
 
-    //定时器
+    //每个客户端对应一个定时器
     users_timer = new client_data[MAX_FD];
 }
 
@@ -31,13 +31,13 @@ WebServer::~WebServer()
 void WebServer::init(int port, string user, string passWord, string databaseName, int log_write, 
                      int opt_linger, int trigmode, int sql_num, int thread_num, int close_log, int actor_model)
 {
-    m_port = port;
+    m_port = port;                   
     m_user = user;
     m_passWord = passWord;
     m_databaseName = databaseName;
-    m_sql_num = sql_num;
-    m_thread_num = thread_num;
-    m_log_write = log_write;
+    m_sql_num = sql_num;             
+    m_thread_num = thread_num;      
+    m_log_write = log_write;         
     m_OPT_LINGER = opt_linger;
     m_TRIGMode = trigmode;
     m_close_log = close_log;
@@ -73,15 +73,18 @@ void WebServer::trig_mode()
 }
 
 void WebServer::log_write()
-{
-    if (0 == m_close_log)
+{   // 开启日志
+    if (0 == m_close_log)      
     {
-        //初始化日志
+        //日志系统作为单例存在且为懒汉式
         if (1 == m_log_write)
+            // 异步
             Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 800);
         else
+            // 同步
             Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 0);
     }
+    // 不开启日志不会创建日志类对象
 }
 
 void WebServer::sql_pool()

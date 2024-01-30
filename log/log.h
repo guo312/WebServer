@@ -13,22 +13,26 @@ using namespace std;
 class Log
 {
 public:
-    //C++11以后,使用局部变量懒汉不用加锁
+    // C++11 以后,使用局部变量懒汉不用加锁，可以使用双重检查锁
     static Log *get_instance()
     {
         static Log instance;
         return &instance;
     }
 
+    // 异步工作线程（将缓冲区数据写入内核 单线程）
     static void *flush_log_thread(void *args)
     {
         Log::get_instance()->async_write_log();
     }
-    //可选择的参数有日志文件、日志缓冲区大小、最大行数以及最长日志条队列
+
+    // 可选择的参数有日志文件、日志缓冲区大小、最大行数以及最长日志条队列
     bool init(const char *file_name, int close_log, int log_buf_size = 8192, int split_lines = 5000000, int max_queue_size = 0);
 
+    // 统一输出日志方法（内部根据配置同步或异步）
     void write_log(int level, const char *format, ...);
 
+    // printf fprintf 都优先写在用户态的缓冲区中，这会导致线程不安全问题，fflush 函数会强制刷新缓冲区内容到内核态，但是否直接写入磁盘是操作系统决定的，一般写在页缓存中
     void flush(void);
 
 private:
@@ -56,7 +60,7 @@ private:
     FILE *m_fp;         //打开log的文件指针
     char *m_buf;
     block_queue<string> *m_log_queue; //阻塞队列
-    bool m_is_async;                  //是否同步标志位
+    bool m_is_async;                  //是否异步标志位
     locker m_mutex;
     int m_close_log; //关闭日志
 };

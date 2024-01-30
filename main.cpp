@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    //需要修改的数据库信息,登录名,密码,库名
+    //服务端对应的数据库信息,登录名,密码,库名
     string user = "root";
     string passwd = "521xx1314";
     string databasename = "userDB";

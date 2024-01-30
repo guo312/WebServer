@@ -9,7 +9,7 @@ using namespace std;
 Log::Log()
 {
     m_count = 0;
-    m_is_async = false;
+    m_is_async = false; // 默认同步
 }
 
 Log::~Log()
@@ -19,6 +19,7 @@ Log::~Log()
         fclose(m_fp);
     }
 }
+
 //异步需要设置阻塞队列的长度，同步不需要设置
 bool Log::init(const char *file_name, int close_log, int log_buf_size, int split_lines, int max_queue_size)
 {
@@ -38,14 +39,16 @@ bool Log::init(const char *file_name, int close_log, int log_buf_size, int split
     memset(m_buf, '\0', m_log_buf_size);
     m_split_lines = split_lines;
 
+    // 获取本地时间
     time_t t = time(NULL);
     struct tm *sys_tm = localtime(&t);
     struct tm my_tm = *sys_tm;
 
- 
+    // 在一个字符串中查找"/"的最后一次出现
     const char *p = strrchr(file_name, '/');
     char log_full_name[256] = {0};
 
+    // 生成日志文件名
     if (p == NULL)
     {
         snprintf(log_full_name, 255, "%d_%02d_%02d_%s", my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday, file_name);
@@ -53,12 +56,13 @@ bool Log::init(const char *file_name, int close_log, int log_buf_size, int split
     else
     {
         strcpy(log_name, p + 1);
-        strncpy(dir_name, file_name, p - file_name + 1);
+        strncpy(dir_name, file_name, p - file_name + 1);  // 获取文件夹目录 默认配置为空
         snprintf(log_full_name, 255, "%s%d_%02d_%02d_%s", dir_name, my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday, log_name);
     }
 
     m_today = my_tm.tm_mday;
     
+    // a 权限没有文件创建 有文件默认追加
     m_fp = fopen(log_full_name, "a");
     if (m_fp == NULL)
     {
@@ -98,7 +102,7 @@ void Log::write_log(int level, const char *format, ...)
     m_mutex.lock();
     m_count++;
 
-    if (m_today != my_tm.tm_mday || m_count % m_split_lines == 0) //everyday log
+    if (m_today != my_tm.tm_mday || m_count % m_split_lines == 0) // 需要更换日志文件
     {
         
         char new_log[256] = {0};
@@ -126,6 +130,7 @@ void Log::write_log(int level, const char *format, ...)
     va_list valst;
     va_start(valst, format);
 
+    // 生成单次日志内容，这里操作了 m_buf （堆内存共享）要考虑线程安全
     string log_str;
     m_mutex.lock();
 
@@ -141,12 +146,15 @@ void Log::write_log(int level, const char *format, ...)
 
     m_mutex.unlock();
 
+    // 异步放入缓冲区
     if (m_is_async && !m_log_queue->full())
     {
         m_log_queue->push(log_str);
     }
+    // 同步直接写文件
     else
     {
+        // 加锁防止多线程日志混乱
         m_mutex.lock();
         fputs(log_str.c_str(), m_fp);
         m_mutex.unlock();
