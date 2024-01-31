@@ -93,7 +93,7 @@ void WebServer::sql_pool()
     m_connPool = connection_pool::GetInstance();
     m_connPool->init("localhost", m_user, m_passWord, m_databaseName, 3306, m_sql_num, m_close_log);
 
-    //初始化数据库读取表
+    //把数据库内容放在内存中去
     users->initmysql_result(m_connPool);
 }
 

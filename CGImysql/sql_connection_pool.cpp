@@ -81,7 +81,7 @@ MYSQL *connection_pool::GetConnection()
 	return con;
 }
 
-//释放当前使用的连接
+//释放当前使用的连接放回池中
 bool connection_pool::ReleaseConnection(MYSQL *con)
 {
 	if (NULL == con)

@@ -48,14 +48,13 @@ public:
     char *m_root;
     int m_log_write;
     int m_close_log;
-    int m_actormodel;
+    int m_actormodel; 
 
     int m_pipefd[2];
     int m_epollfd;
     http_conn *users;
 
-    //数据库相关
-    connection_pool *m_connPool;
+    connection_pool *m_connPool; // 数据库连接池
     string m_user;         //登陆数据库用户名
     string m_passWord;     //登陆数据库密码
     string m_databaseName; //使用数据库名
