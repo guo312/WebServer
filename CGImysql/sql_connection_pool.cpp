@@ -22,7 +22,6 @@ connection_pool *connection_pool::GetInstance()
 	return &connPool;
 }
 
-//构造初始化
 void connection_pool::init(string url, string User, string PassWord, string DBName, int Port, int MaxConn, int close_log)
 {
 	m_url = url;
@@ -42,6 +41,7 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
 			LOG_ERROR("MySQL Error");
 			exit(1);
 		}
+		// 建立一个mySQL连接
 		con = mysql_real_connect(con, url.c_str(), User.c_str(), PassWord.c_str(), DBName.c_str(), Port, NULL, 0);
 
 		if (con == NULL)
@@ -53,7 +53,7 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
 		++m_FreeConn;
 	}
 
-	reserve = sem(m_FreeConn);
+	reserve = sem(m_FreeConn);   // 初始化信号量
 
 	m_MaxConn = m_FreeConn;
 }

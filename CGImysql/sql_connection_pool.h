@@ -16,14 +16,18 @@ using namespace std;
 class connection_pool
 {
 public:
-	MYSQL *GetConnection();				 //获取数据库连接
-	bool ReleaseConnection(MYSQL *conn); //释放连接
-	int GetFreeConn();					 //获取连接
-	void DestroyPool();					 //销毁所有连接
+	//获取数据库连接
+	MYSQL *GetConnection();			
+	//释放连接	 
+	bool ReleaseConnection(MYSQL *conn); 
+	//获取连接
+	int GetFreeConn();		
+	//销毁所有连接			 
+	void DestroyPool();					 
 
 	//单例模式
 	static connection_pool *GetInstance();
-
+	//构造初始化建立连接池
 	void init(string url, string User, string PassWord, string DataBaseName, int Port, int MaxConn, int close_log); 
 
 private:
@@ -38,7 +42,7 @@ private:
 	sem reserve;
 
 public:
-	string m_url;			 //主机地址
+	string m_url;		 //主机地址
 	string m_Port;		 //数据库端口号
 	string m_User;		 //登陆数据库用户名
 	string m_PassWord;	 //登陆数据库密码
@@ -46,6 +50,7 @@ public:
 	int m_close_log;	//日志开关
 };
 
+// 托管单个连接资源
 class connectionRAII{
 
 public:
