@@ -110,12 +110,12 @@ void WebServer::eventListen()
     assert(m_listenfd >= 0);
 
     //优雅关闭连接
-    if (0 == m_OPT_LINGER)
+    if (0 == m_OPT_LINGER) // 关闭
     {
         struct linger tmp = {0, 1};
         setsockopt(m_listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof(tmp));
     }
-    else if (1 == m_OPT_LINGER)
+    else if (1 == m_OPT_LINGER) // 打开
     {
         struct linger tmp = {1, 1};
         setsockopt(m_listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof(tmp));
@@ -125,13 +125,15 @@ void WebServer::eventListen()
     struct sockaddr_in address;
     bzero(&address, sizeof(address));
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    address.sin_addr.s_addr = htonl(INADDR_ANY);  // 接收本地所有网卡消息
     address.sin_port = htons(m_port);
 
     int flag = 1;
+    // 开启端口复用 服务器快速重启 
     setsockopt(m_listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
     ret = bind(m_listenfd, (struct sockaddr *)&address, sizeof(address));
     assert(ret >= 0);
+    // 参数 5 是设置全连接队列的大小
     ret = listen(m_listenfd, 5);
     assert(ret >= 0);
 
@@ -142,22 +144,25 @@ void WebServer::eventListen()
     m_epollfd = epoll_create(5);
     assert(m_epollfd != -1);
 
+    //向epoll中添加监听文件描述符不需要开启EPOLLONESHOT
     utils.addfd(m_epollfd, m_listenfd, false, m_LISTENTrigmode);
     http_conn::m_epollfd = m_epollfd;
 
+    //本地socket 用与和本地计时器模块通信
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, m_pipefd);
     assert(ret != -1);
     utils.setnonblocking(m_pipefd[1]);
     utils.addfd(m_epollfd, m_pipefd[0], false, 0);
 
-    utils.addsig(SIGPIPE, SIG_IGN);
-    utils.addsig(SIGALRM, utils.sig_handler, false);
-    utils.addsig(SIGTERM, utils.sig_handler, false);
+    utils.addsig(SIGPIPE, SIG_IGN);  // 忽略SIGPIPE信号
+    utils.addsig(SIGALRM, utils.sig_handler, false); // 定时器信号
+    utils.addsig(SIGTERM, utils.sig_handler, false); // SIGTERM 进程终止信号
 
+    // 定时产生 SIGALRM 信号 只产生一次
     alarm(TIMESLOT);
 
     //工具类,信号和描述符基础操作
-    Utils::u_pipefd = m_pipefd;
+    Utils::u_pipefd = m_pipefd;  
     Utils::u_epollfd = m_epollfd;
 }
 
@@ -204,7 +209,7 @@ bool WebServer::dealclinetdata()
 {
     struct sockaddr_in client_address;
     socklen_t client_addrlength = sizeof(client_address);
-    if (0 == m_LISTENTrigmode)
+    if (0 == m_LISTENTrigmode) // LT 水平触发 epoll 会在有消息未读完的情况下每次触发
     {
         int connfd = accept(m_listenfd, (struct sockaddr *)&client_address, &client_addrlength);
         if (connfd < 0)
@@ -223,7 +228,7 @@ bool WebServer::dealclinetdata()
 
     else
     {
-        while (1)
+        while (1)  // ET 模式 要读完所有数据 epoll 只会在状态改变时触发
         {
             int connfd = accept(m_listenfd, (struct sockaddr *)&client_address, &client_addrlength);
             if (connfd < 0)
@@ -266,12 +271,12 @@ bool WebServer::dealwithsignal(bool &timeout, bool &stop_server)
             {
             case SIGALRM:
             {
-                timeout = true;
+                timeout = true;    //定时器触发
                 break;
             }
             case SIGTERM:
             {
-                stop_server = true;
+                stop_server = true;  //终止服务器
                 break;
             }
             }
@@ -384,8 +389,8 @@ void WebServer::eventLoop()
 
     while (!stop_server)
     {
-        int number = epoll_wait(m_epollfd, events, MAX_EVENT_NUMBER, -1);
-        if (number < 0 && errno != EINTR)
+        int number = epoll_wait(m_epollfd, events, MAX_EVENT_NUMBER, -1); // 0 表示非阻塞模式立即返回 -1 表示阻塞模式一直等待
+        if (number < 0 && errno != EINTR)  // EINTR 表示系统调用被中断 正常现象 比如收到信号处理信号时中断了系统调用
         {
             LOG_ERROR("%s", "epoll failure");
             break;
@@ -404,7 +409,7 @@ void WebServer::eventLoop()
             }
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
-                //服务器端关闭连接，移除对应的定时器
+                //关闭连接，移除对应的定时器
                 util_timer *timer = users_timer[sockfd].timer;
                 deal_timer(timer, sockfd);
             }

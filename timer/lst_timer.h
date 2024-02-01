@@ -26,6 +26,7 @@
 
 class util_timer;
 
+// 客户端定时器类
 struct client_data
 {
     sockaddr_in address;
@@ -33,6 +34,7 @@ struct client_data
     util_timer *timer;
 };
 
+// 定时器
 class util_timer
 {
 public:
@@ -47,6 +49,7 @@ public:
     util_timer *next;
 };
 
+// 有序链表
 class sort_timer_lst
 {
 public:
@@ -65,6 +68,7 @@ private:
     util_timer *tail;
 };
 
+// 工具类
 class Utils
 {
 public:
@@ -91,7 +95,7 @@ public:
     void show_error(int connfd, const char *info);
 
 public:
-    static int *u_pipefd;
+    static int *u_pipefd; 
     sort_timer_lst m_timer_lst;
     static int u_epollfd;
     int m_TIMESLOT;

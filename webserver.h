@@ -35,12 +35,18 @@ public:
     void trig_mode();
     void eventListen();
     void eventLoop();
+    //初始化客户端对象并为新的连接绑定一个定时器
     void timer(int connfd, struct sockaddr_in client_address);
     void adjust_timer(util_timer *timer);
+    //断开连接
     void deal_timer(util_timer *timer, int sockfd);
+    //处理新的连接
     bool dealclinetdata();
+    //处理从本地socket中读出的信号
     bool dealwithsignal(bool& timeout, bool& stop_server);
+    //处理客户端可读事件
     void dealwithread(int sockfd);
+    //处理客户端可写事件
     void dealwithwrite(int sockfd);
 
 public:
@@ -67,14 +73,14 @@ public:
     //epoll_event相关
     epoll_event events[MAX_EVENT_NUMBER];
 
-    int m_listenfd;
-    int m_OPT_LINGER;
+    int m_listenfd;   //监听文件描述符
+    int m_OPT_LINGER; //优雅关闭链接默认不使用 -o 可自定义 0 不使用 1 使用
     int m_TRIGMode;
-    int m_LISTENTrigmode;
-    int m_CONNTrigmode;
+    int m_LISTENTrigmode; //监听文件描述符触发方式
+    int m_CONNTrigmode;   //客户端文件描述符触发方式
 
     //定时器相关
-    client_data *users_timer;
+    client_data *users_timer; //客户端定时器容器
     Utils utils;
 };
 #endif

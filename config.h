@@ -22,10 +22,10 @@ public:
     //触发组合模式listenfd和connfd的模式组合，默认使用LT + LT0，-m 可自定义 0 表示使用LT + LT1 1 表示使用LT + ET2 2 表示使用ET + LT3 3 表示使用ET + ET
     int TRIGMode;
 
-    //listenfd触发模式
+    //listenfd触发模式默认LT
     int LISTENTrigmode;
 
-    //connfd触发模式
+    //connfd触发模式默认LT
     int CONNTrigmode;
 
     //优雅关闭链接默认不使用 -o 可自定义 0 不使用 1 使用

@@ -159,7 +159,7 @@ int Utils::setnonblocking(int fd)
     return old_option;
 }
 
-//将内核事件表注册读事件，ET模式，选择开启EPOLLONESHOT
+//向内核事件表注册读事件，ET模式，选择开启EPOLLONESHOT 默认非阻塞
 void Utils::addfd(int epollfd, int fd, bool one_shot, int TRIGMode)
 {
     epoll_event event;
@@ -182,25 +182,27 @@ void Utils::sig_handler(int sig)
     //为保证函数的可重入性，保留原来的errno
     int save_errno = errno;
     int msg = sig;
-    send(u_pipefd[1], (char *)&msg, 1, 0);
+    send(u_pipefd[1], (char *)&msg, 1, 0); // 向主线程写入信号
     errno = save_errno;
 }
 
-//设置信号函数
+//设置信号处理函数
 void Utils::addsig(int sig, void(handler)(int), bool restart)
 {
     struct sigaction sa;
     memset(&sa, '\0', sizeof(sa));
     sa.sa_handler = handler;
+    // 当信号发生并被处理后，如果某个系统调用因为信号而被中断，那么系统调用会被自动重启
     if (restart)
         sa.sa_flags |= SA_RESTART;
     sigfillset(&sa.sa_mask);
     assert(sigaction(sig, &sa, NULL) != -1);
 }
 
-//定时处理任务，重新定时以不断触发SIGALRM信号
+//主线程调用 重新定时以不断触发SIGALRM信号
 void Utils::timer_handler()
 {
+    //检查是否有客户端超时
     m_timer_lst.tick();
     alarm(m_TIMESLOT);
 }
@@ -215,6 +217,7 @@ int *Utils::u_pipefd = 0;
 int Utils::u_epollfd = 0;
 
 class Utils;
+// 超时回调断开连接 正常断开也调用这个方法
 void cb_func(client_data *user_data)
 {
     epoll_ctl(Utils::u_epollfd, EPOLL_CTL_DEL, user_data->sockfd, 0);
