@@ -144,7 +144,7 @@ void WebServer::eventListen()
     m_epollfd = epoll_create(5);
     assert(m_epollfd != -1);
 
-    //向epoll中添加监听文件描述符不需要开启EPOLLONESHOT
+    //向epoll中添加监听文件描述符 不需要开启EPOLLONESHOT
     utils.addfd(m_epollfd, m_listenfd, false, m_LISTENTrigmode);
     http_conn::m_epollfd = m_epollfd;
 
@@ -168,6 +168,7 @@ void WebServer::eventListen()
 
 void WebServer::timer(int connfd, struct sockaddr_in client_address)
 {
+    // init 内部向epoll中添加了 connfd
     users[connfd].init(connfd, client_address, m_root, m_CONNTrigmode, m_close_log, m_user, m_passWord, m_databaseName);
 
     //初始化client_data数据
@@ -297,7 +298,7 @@ void WebServer::dealwithread(int sockfd)
             adjust_timer(timer);
         }
 
-        //若监测到读事件，将该事件放入请求队列
+        //若监测到读事件，将该事件放入请求队列 Reactor 模式读在工作线程中完成
         m_pool->append(users + sockfd, 0);
 
         while (true)
@@ -316,14 +317,15 @@ void WebServer::dealwithread(int sockfd)
     }
     else
     {
-        //proactor
+        //proactor 主线程进行读
         if (users[sockfd].read_once())
         {
             LOG_INFO("deal with the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
 
-            //若监测到读事件，将该事件放入请求队列
+            //读完成事件，将该事件放入请求队列
             m_pool->append_p(users + sockfd);
 
+            //客户端进行了操作修改定时器
             if (timer)
             {
                 adjust_timer(timer);
@@ -331,6 +333,7 @@ void WebServer::dealwithread(int sockfd)
         }
         else
         {
+            // 读出问题 关闭连接
             deal_timer(timer, sockfd);
         }
     }
@@ -400,7 +403,7 @@ void WebServer::eventLoop()
         {
             int sockfd = events[i].data.fd;
 
-            //处理新到的客户连接
+            //处理新到的客户端连接
             if (sockfd == m_listenfd)
             {
                 bool flag = dealclinetdata();

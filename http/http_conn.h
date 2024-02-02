@@ -30,8 +30,11 @@ class http_conn
 {
 public:
     static const int FILENAME_LEN = 200;
+    // 读缓冲区大小
     static const int READ_BUFFER_SIZE = 2048;
+    // 写缓冲区大小
     static const int WRITE_BUFFER_SIZE = 1024;
+    // http 协议的请求类型 GET 登录是使用 POST 注册时使用
     enum METHOD
     {
         GET = 0,
@@ -44,11 +47,12 @@ public:
         CONNECT,
         PATH
     };
+    // 解析请求主状态机的几种状态 
     enum CHECK_STATE
     {
-        CHECK_STATE_REQUESTLINE = 0,
-        CHECK_STATE_HEADER,
-        CHECK_STATE_CONTENT
+        CHECK_STATE_REQUESTLINE = 0,  // 请求首行
+        CHECK_STATE_HEADER,           // 头部
+        CHECK_STATE_CONTENT           // 请求体
     };
     enum HTTP_CODE
     {
@@ -61,11 +65,12 @@ public:
         INTERNAL_ERROR,
         CLOSED_CONNECTION
     };
+    // 解析请求从状态机
     enum LINE_STATUS
     {
-        LINE_OK = 0,
-        LINE_BAD,
-        LINE_OPEN
+        LINE_OK = 0,                  // 行解析完毕
+        LINE_BAD,                     // 行消息出错
+        LINE_OPEN                     // 行消息不完整
     };
 
 public:
@@ -73,9 +78,13 @@ public:
     ~http_conn() {}
 
 public:
+    // 主要初始化和连接相关的参数
     void init(int sockfd, const sockaddr_in &addr, char *, int, int, string user, string passwd, string sqlname);
+    // 关闭连接
     void close_conn(bool real_close = true);
+    // 解析http请求生成响应报文
     void process();
+    // 处理读事件
     bool read_once();
     bool write();
     sockaddr_in *get_address()
@@ -88,14 +97,20 @@ public:
 
 
 private:
+    // http 协议是有状态的协议 这里初始化和状态相关的参数
     void init();
+    // 解析请求报文
     HTTP_CODE process_read();
+    // 产生响应报文
     bool process_write(HTTP_CODE ret);
+    //解析http请求行，获得请求方法，目标url及http版本号
     HTTP_CODE parse_request_line(char *text);
+    //解析http请求的一个头部信息
     HTTP_CODE parse_headers(char *text);
     HTTP_CODE parse_content(char *text);
     HTTP_CODE do_request();
     char *get_line() { return m_read_buf + m_start_line; };
+    //从状态机，用于分析出一行内容 返回值为行的读取状态，有LINE_OK,LINE_BAD,LINE_OPEN
     LINE_STATUS parse_line();
     void unmap();
     bool add_response(const char *format, ...);
@@ -111,25 +126,26 @@ public:
     static int m_epollfd;
     static int m_user_count;
     MYSQL *mysql;
-    int m_state;  //读为0, 写为1
+    // 0 表示读状态 1 表示写状态 在 reactor模式下IO操作工作线程完成，工作线程需要知道当前状态，proactor 不需要
+    int m_state; 
 
 private:
     int m_sockfd;
     sockaddr_in m_address;
-    char m_read_buf[READ_BUFFER_SIZE];
-    long m_read_idx;
-    long m_checked_idx;
-    int m_start_line;
+    char m_read_buf[READ_BUFFER_SIZE];  // 读缓存
+    long m_read_idx;                    // 读缓存中报文长度
+    long m_checked_idx;                 // 待解析请求报文下标
+    int m_start_line;                   // 每行数据的起始下标
     char m_write_buf[WRITE_BUFFER_SIZE];
     int m_write_idx;
     CHECK_STATE m_check_state;
     METHOD m_method;
     char m_real_file[FILENAME_LEN];
-    char *m_url;
-    char *m_version;
-    char *m_host;
-    long m_content_length;
-    bool m_linger;
+    char *m_url;                        // 请求资源URL
+    char *m_version;                    // http 协议版本号
+    char *m_host;                       // 目标服务器的主机名或IP地址
+    long m_content_length;              // 消息体长度
+    bool m_linger;                      // 是否长连接
     char *m_file_address;
     struct stat m_file_stat;
     struct iovec m_iv[2];

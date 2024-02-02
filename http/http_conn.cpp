@@ -116,6 +116,7 @@ void http_conn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMo
     m_sockfd = sockfd;
     m_address = addr;
 
+    // 这里 oneshot 事件设置为 true 是防止多个工作线程同时处理一个连接 http 是有状态的协议
     addfd(m_epollfd, sockfd, true, m_TRIGMode);
     m_user_count++;
 
@@ -159,10 +160,9 @@ void http_conn::init()
     memset(m_real_file, '\0', FILENAME_LEN);
 }
 
-//从状态机，用于分析出一行内容
-//返回值为行的读取状态，有LINE_OK,LINE_BAD,LINE_OPEN
 http_conn::LINE_STATUS http_conn::parse_line()
 {
+    //验证行数据是否合法 \r\n 标识一行数据 修改为 \0 便于取数据
     char temp;
     for (; m_checked_idx < m_read_idx; ++m_checked_idx)
     {
@@ -193,8 +193,7 @@ http_conn::LINE_STATUS http_conn::parse_line()
     return LINE_OPEN;
 }
 
-//循环读取客户数据，直到无数据可读或对方关闭连接
-//非阻塞ET工作模式下，需要一次性将数据读完
+//读取客户端数据根据 
 bool http_conn::read_once()
 {
     if (m_read_idx >= READ_BUFFER_SIZE)
@@ -221,6 +220,7 @@ bool http_conn::read_once()
     {
         while (true)
         {
+            // 这里没有考虑读缓冲不足的情况
             bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE - m_read_idx, 0);
             if (bytes_read == -1)
             {
@@ -238,7 +238,6 @@ bool http_conn::read_once()
     }
 }
 
-//解析http请求行，获得请求方法，目标url及http版本号
 http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
 {
     m_url = strpbrk(text, " \t");
@@ -279,26 +278,26 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
 
     if (!m_url || m_url[0] != '/')
         return BAD_REQUEST;
-    //当url为/时，显示判断界面
+    //当url为/时，显示判断界面 显示根目录
     if (strlen(m_url) == 1)
         strcat(m_url, "judge.html");
-    m_check_state = CHECK_STATE_HEADER;
+    m_check_state = CHECK_STATE_HEADER;  // 修改状态
     return NO_REQUEST;
 }
 
-//解析http请求的一个头部信息
+
 http_conn::HTTP_CODE http_conn::parse_headers(char *text)
 {
-    if (text[0] == '\0')
+    if (text[0] == '\0') // 遇到空行请求头解析结束
     {
-        if (m_content_length != 0)
+        if (m_content_length != 0)  // 消息体不为空
         {
-            m_check_state = CHECK_STATE_CONTENT;
+            m_check_state = CHECK_STATE_CONTENT;  
             return NO_REQUEST;
         }
         return GET_REQUEST;
     }
-    else if (strncasecmp(text, "Connection:", 11) == 0)
+    else if (strncasecmp(text, "Connection:", 11) == 0) 
     {
         text += 11;
         text += strspn(text, " \t");
@@ -347,7 +346,7 @@ http_conn::HTTP_CODE http_conn::process_read()
 
     while ((m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK) || ((line_status = parse_line()) == LINE_OK))
     {
-        text = get_line();
+        text = get_line();  //获取行数据
         m_start_line = m_checked_idx;
         LOG_INFO("%s", text);
         switch (m_check_state)
@@ -688,7 +687,7 @@ bool http_conn::process_write(HTTP_CODE ret)
 void http_conn::process()
 {
     HTTP_CODE read_ret = process_read();
-    if (read_ret == NO_REQUEST)
+    if (read_ret == NO_REQUEST)  // 消息接收不完整重新注册 fd
     {
         modfd(m_epollfd, m_sockfd, EPOLLIN, m_TRIGMode);
         return;

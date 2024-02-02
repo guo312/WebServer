@@ -33,7 +33,7 @@ private:
     locker m_queuelocker;       //保护请求队列的互斥锁
     sem m_queuestat;            //待处理任务数量
     connection_pool *m_connPool;  //数据库连接池
-    int m_actor_model;          //模型切换
+    int m_actor_model;          //模型切换 reactor 或 proactor
 };
 
 template <typename T>
@@ -67,7 +67,7 @@ threadpool<T>::~threadpool()
 }
 
 template <typename T>
-bool threadpool<T>::append(T *request, int state)
+bool threadpool<T>::append(T *request, int state)  // reactor 模式调用告知工作线程事件类型
 {
     m_queuelocker.lock();
     if (m_workqueue.size() >= m_max_requests)
@@ -83,7 +83,7 @@ bool threadpool<T>::append(T *request, int state)
 }
 
 template <typename T>
-bool threadpool<T>::append_p(T *request)
+bool threadpool<T>::append_p(T *request)  // proactor 模式调用 IO 操作是主线程完成，工作线程只负责解析http
 {
     m_queuelocker.lock();
     if (m_workqueue.size() >= m_max_requests)
@@ -110,6 +110,7 @@ void threadpool<T>::run()
 {
     while (true)
     {
+        // 线程同步 取消息
         m_queuestat.wait();
         m_queuelocker.lock();
         if (m_workqueue.empty())
@@ -122,9 +123,10 @@ void threadpool<T>::run()
         m_queuelocker.unlock();
         if (!request)
             continue;
-        if (1 == m_actor_model)
+        
+        if (1 == m_actor_model)  // reactor 模式
         {
-            if (0 == request->m_state)
+            if (0 == request->m_state)  // 读事件
             {
                 if (request->read_once())
                 {
@@ -138,7 +140,7 @@ void threadpool<T>::run()
                     request->timer_flag = 1;
                 }
             }
-            else
+            else  // 写事件
             {
                 if (request->write())
                 {
@@ -151,9 +153,11 @@ void threadpool<T>::run()
                 }
             }
         }
-        else
+        else // proactor 模式主线程已经将消息读入完毕
         {
+            //从连接池中分配一个连接
             connectionRAII mysqlcon(&request->mysql, m_connPool);
+            //解析
             request->process();
         }
     }
