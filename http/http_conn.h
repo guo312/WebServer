@@ -107,19 +107,29 @@ private:
     HTTP_CODE parse_request_line(char *text);
     //解析http请求的一个头部信息
     HTTP_CODE parse_headers(char *text);
+    //判断http请求是否被完整读入
     HTTP_CODE parse_content(char *text);
+    //根据解析内容做出响应
     HTTP_CODE do_request();
     char *get_line() { return m_read_buf + m_start_line; };
     //从状态机，用于分析出一行内容 返回值为行的读取状态，有LINE_OK,LINE_BAD,LINE_OPEN
     LINE_STATUS parse_line();
     void unmap();
+    // 可变参数，实际生成响应报文
     bool add_response(const char *format, ...);
+    // 添加响应报文消息体
     bool add_content(const char *content);
+    // 添加响应首行
     bool add_status_line(int status, const char *title);
+    // 添加响应报文头部
     bool add_headers(int content_length);
+    // 添加响应报文类型字段 实际未调用
     bool add_content_type();
+    // 添加响应报文消息体长度
     bool add_content_length(int content_length);
+    // 添加是否长连接字段
     bool add_linger();
+    // 添加空行
     bool add_blank_line();
 
 public:
@@ -140,7 +150,7 @@ private:
     int m_write_idx;
     CHECK_STATE m_check_state;
     METHOD m_method;
-    char m_real_file[FILENAME_LEN];
+    char m_real_file[FILENAME_LEN];     // 请求服务端资源路径
     char *m_url;                        // 请求资源URL
     char *m_version;                    // http 协议版本号
     char *m_host;                       // 目标服务器的主机名或IP地址
@@ -150,11 +160,11 @@ private:
     struct stat m_file_stat;
     struct iovec m_iv[2];
     int m_iv_count;
-    int cgi;        //是否启用的POST
+    int cgi;        //是否是POST请求
     char *m_string; //存储请求头数据
     int bytes_to_send;
     int bytes_have_send;
-    char *doc_root;
+    char *doc_root; //资源根目录
 
     map<string, string> m_users;
     int m_TRIGMode;
